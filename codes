@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园文创AIGC定制平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft Yahei", sans-serif; }
+    .page { display: none; min-height: 100vh; background: #f8fafc; }
+    .page.active { display: block; }
+    .carousel-item { height: 160px; background: linear-gradient(135deg,#60a5fa,#3b82f6); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; font-weight: bold; margin: 20px; }
+    .card-shadow { box-shadow: 0 2px 12px #e2e8f0; border-radius: 10px; overflow: hidden; transition: 0.3s; background: #fff; }
+    .card-shadow:hover { transform: translateY(-4px); box-shadow: 0 6px 18px #cbd5e1; }
+    .btn-blue { background-color: #3b82f6; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-blue:hover { background-color: #2563eb; }
+    .btn-gray { background-color: #94a3b8; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-green { background-color: #10b981; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
+    .btn-red { background-color: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 999; }
+    .modal.show { display: flex; }
+    .rotate-box { width: 100%; height: 240px; background: #dbeafe; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; overflow: hidden; }
+    .rotate-box img { width: 100%; height: 100%; object-fit: cover; }
+    .tag { padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+    .tag-pending { background: #fef3c7; color: #d97706; }
+    .tag-shipped { background: #dbeafe; color: #2563eb; }
+    .tag-finish { background: #dcfce7; color: #16a34a; }
+    .nav-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; font-weight: bold; }
+    .product-img { width: 100%; height: 160px; object-fit: cover; }
+    header { background: #fff; padding:12px 24px; display:flex; justify-content: space-between; align-items:center; box-shadow:0 1px 4px #eee; }
+    .nav-bar span { margin:0 14px; cursor:pointer; color:#333; }
+    /* AI生成页面专属样式 */
+    .ai-preview-box {
+      width: 100%;
+      height: 320px;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid #e5e7eb;
+    }
+    #aiCanvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!-- 登录注册弹窗 -->
+  <div class="modal" id="loginModal">
+    <div class="bg-white w-[420px] p-6 rounded-xl">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-slate-800" id="modalTitle">用户登录</h2>
+        <button onclick="closeModal()" class="text-slate-400 text-xl">×</button>
+      </div>
+      <div id="loginForm">
+        <div class="mb-3">
+          <label class="text-sm text-slate-600 block mb-1">用户名</label>
+          <input type="text" id="loginUser" class="w-full border border-slate-200 rounded px-3 py-2" placeholder="学生账号：user / 管理员：admin">
+        </div>
+        <div class="mb-4">
+          <label class="text-sm text-slate-600 block mb-1">密码</label>
+          <input type="password" id="loginPwd" class="w-full border border-slate-200 rounded px-3 py-2" placeholder="学生：123456 / 管理员：admin123">
+        </div>
+        <button onclick="doLogin()" class="btn-blue w-full mb-3">登录</button>
+        <p class="text-center text-sm text-slate-500">没有账号？<span onclick="switchReg()" class="text-blue-500 cursor-pointer">去注册</span></p>
+      </div>
+      <div id="regForm" class="hidden">
+        <div class="mb-3">
+          <label class="text-sm text-slate-600 block mb-1">用户名</label>
+          <input type="text" id="regUser" class="w-full border border-slate-200 rounded px-3 py-2">
+        </div>
+        <div class="mb-3">
+          <label class="text-sm text-slate-600 block mb-1">密码</label>
+          <input type="password" id="regPwd" class="w-full border border-slate-200 rounded px-3 py-2">
+        </div>
+        <div class="mb-4">
+          <label class="text-sm text-slate-600 block mb-1">手机号</label>
+          <input type="text" id="regPhone" class="w-full border border-slate-200 rounded px-3 py-2">
+        </div>
+        <button onclick="doRegister()" class="btn-blue w-full mb-3">注册</button>
+        <p class="text-center text-sm text-slate-500">已有账号？<span onclick="switchLogin()" class="text-blue-500 cursor-pointer">去登录</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 顶部导航 和截图布局完全匹配 -->
+  <header>
+    <h1 class="text-xl font-bold text-blue-600 cursor-pointer" onclick="switchPage('home')">校园文创AIGC定制平台</h1>
+    <div class="nav-bar">
+      <span class="nav-item py-2 cursor-pointer" onclick="switchPage('home')">首页</span>
+      <span class="nav-item py-2 cursor-pointer" onclick="switchPage('aiCreate')">AI文创生成</span>
+      <span class="nav-item py-2 cursor-pointer" onclick="switchPage('cart')">购物车</span>
+      <span class="nav-item py-2 cursor-pointer" onclick="switchPage('personal')">个人中心</span>
+    </div>
+    <div id="userArea">
+      <span id="userText"></span>
+      <button onclick="openModal()" class="btn-blue text-sm">登录/注册</button>
+      <button onclick="logout()" class="btn-gray text-sm hidden" id="logoutBtn">退出登录</button>
+    </div>
+    <span class="hidden" id="adminEntry" onclick="switchPage('adminHome')">管理后台</span>
+  </header>
+
+  <!-- 1.首页（和你截图界面1:1还原） -->
+  <div class="page active" id="page-home">
+    <!-- 顶部蓝色轮播横幅 -->
+    <div class="carousel-item">校园文创，AI一键定制专属周边</div>
+    <div class="px-5">
+      <!-- 搜索框 -->
+      <div class="flex gap-3 mb-6">
+        <input type="text" id="searchKey" placeholder="搜索文创商品" class="flex-1 border border-slate-200 rounded px-4 py-2">
+        <button onclick="searchProduct()" class="btn-blue">搜索</button>
+      </div>
+      <!-- 分类标签 -->
+      <div class="flex gap-3 mb-6">
+        <button onclick="filterCate('all')" class="btn-blue">全部</button>
+        <button onclick="filterCate('stationery')" class="btn-gray">文具</button>
+        <button onclick="filterCate('clothes')" class="btn-gray">服饰</button>
+        <button onclick="filterCate('gift')" class="btn-gray">纪念礼品</button>
+      </div>
+      <!-- 商品列表 带实物图片 -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5" id="productList"></div>
+    </div>
+  </div>
+
+  <!-- 2.商品详情页 -->
+  <div class="page" id="page-detail">
+    <div class="container mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <div class="rotate-box mb-4" id="detail3d">
+            <img id="detailImg" src="" alt="文创实物图">
+          </div>
+          <p class="text-sm text-slate-500">鼠标拖拽旋转、滚轮缩放预览实物</p>
+        </div>
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 mb-3" id="detailName"></h2>
+          <p class="text-red-500 text-xl font-bold mb-2">¥<span id="detailPrice"></span></p>
+          <p class="text-slate-500 mb-2">库存：<span id="detailStock"></span>件</p>
+          <p class="text-slate-500 mb-4">分类：<span id="detailCate"></span></p>
+          <div class="flex gap-2 mb-4">
+            <button onclick="likeProduct()" class="btn-gray">点赞</button>
+            <button onclick="collectProduct()" class="btn-gray">收藏</button>
+          </div>
+          <div class="flex items-center gap-3 mb-6">
+            <span>数量：</span>
+            <button onclick="numMinus()" class="w-8 h-8 border">-</button>
+            <input value="1" id="buyNum" class="w-12 text-center border py-1">
+            <button onclick="numAdd()" class="w-8 h-8 border">+</button>
+          </div>
+          <button onclick="addCart()" class="btn-blue mr-3">加入购物车</button>
+          <button onclick="goBuy()" class="btn-green">立即购买</button>
+          <hr class="my-6">
+          <h3 class="font-bold mb-3">商品评论</h3>
+          <div id="reviewBox"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.AI文创生成页【修复生成功能】 -->
+  <div class="page" id="page-aiCreate">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+      <h2 class="text-2xl font-bold text-center mb-6">AIGC校园文创智能生成</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <div class="mb-4">
+            <label class="block mb-1 font-medium">学校名称</label>
+            <input id="aiSchool" class="w-full border rounded px-3 py-2" value="湖南工业大学" placeholder="输入你的学校名称">
+          </div>
+          <div class="mb-4">
+            <label class="block mb-1 font-medium">校训/特色关键词</label>
+            <input id="aiWord" class="w-full border rounded px-3 py-2" value="厚德博学" placeholder="如：厚德博学、校徽、樱花地标">
+          </div>
+          <!-- 修复后的生成按钮 -->
+          <button onclick="aiGenerate()" class="btn-blue w-full mb-4 h-12 text-lg">一键生成文创图案</button>
+          <div class="border rounded p-4">
+            <h4 class="font-medium mb-2">在线编辑</h4>
+            <div class="mb-2">
+              <label class="text-sm">主色调</label>
+              <select id="aiColor" class="w-full border rounded px-2 py-1" onchange="aiGenerate()">
+                <option value="#3b82f6">蓝色</option>
+                <option value="#922b80" selected>紫色（校徽原色）</option>
+                <option value="#10b981">绿色</option>
+                <option value="#f59e0b">橙色</option>
+                <option value="#ef4444">红色</option>
+              </select>
+            </div>
+            <button onclick="saveAiWork()" class="btn-green w-full h-11 text-lg">保存我的AI作品</button>
+          </div>
+        </div>
+        <!-- 画布预览区，动态绘制帆布包+校徽 -->
+        <div class="ai-preview-box">
+          <canvas id="aiCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4.购物车 -->
+  <div class="page" id="page-cart">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+      <h2 class="text-2xl font-bold mb-6">我的购物车</h2>
+      <div id="cartList"></div>
+      <div class="mt-6 flex justify-between items-center border-t pt-4">
+        <p>合计：<span class="text-red-500 text-xl font-bold">¥<span id="cartTotal">0</span></span></p>
+        <button onclick="submitOrder()" class="btn-green">结算下单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5.个人中心 -->
+  <div class="page" id="page-personal">
+    <div class="container mx-auto px-4 py-8 max-w-5xl grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div class="bg-white p-4 rounded card-shadow h-fit">
+        <h3 class="font-bold text-lg mb-4">个人菜单</h3>
+        <div class="flex flex-col gap-3">
+          <button onclick="switchPersonalTab('info')" class="text-left py-2 border-b">个人信息</button>
+          <button onclick="switchPersonalTab('collect')" class="text-left py-2 border-b">我的收藏</button>
+          <button onclick="switchPersonalTab('aiwork')" class="text-left py-2 border-b">我的AI作品</button>
+          <button onclick="switchPersonalTab('order')" class="text-left py-2">我的订单</button>
+        </div>
+      </div>
+      <div class="md:col-span-3 bg-white p-6 rounded card-shadow">
+        <div id="tab-info" class="personal-tab">
+          <h3 class="font-bold mb-4">修改个人信息</h3>
+          <div class="mb-3">
+            <label class="block mb-1">用户名</label>
+            <input id="editName" class="w-full border rounded px-3 py-2">
+          </div>
+          <div class="mb-4">
+            <label class="block mb-1">手机号</label>
+            <input id="editPhone" class="w-full border rounded px-3 py-2">
+          </div>
+          <button onclick="saveUserInfo()" class="btn-blue">保存修改</button>
+        </div>
+        <div id="tab-collect" class="personal-tab hidden"></div>
+        <div id="tab-aiwork" class="personal-tab hidden"></div>
+        <div id="tab-order" class="personal-tab hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6.管理员首页/数据统计 -->
+  <div class="page" id="page-adminHome">
+    <div class="container mx-auto px-4 py-6">
+      <div class="flex gap-4 mb-6">
+        <button onclick="switchAdminTab('stat')" class="btn-blue">数据统计看板</button>
+        <button onclick="switchAdminTab('product')" class="btn-gray">商品管理</button>
+        <button onclick="switchAdminTab('order')" class="btn-gray">订单管理</button>
+        <button onclick="switchAdminTab('review')" class="btn-gray">评论审核</button>
+        <button onclick="switchAdminTab('sys')" class="btn-gray">系统管理</button>
+      </div>
+      <div id="admin-stat" class="admin-tab">
+        <h2 class="text-xl font-bold mb-4">销售数据统计</h2>
+        <div id="chartBox" style="width:100%;height:400px;"></div>
+      </div>
+      <div id="admin-product" class="admin-tab hidden">
+        <div class="flex justify-between mb-4">
+          <h2 class="text-xl font-bold">商品列表</h2>
+          <button onclick="openAddProduct()" class="btn-green">新增商品</button>
+        </div>
+        <div id="adminProList"></div>
+      </div>
+      <div id="admin-order" class="admin-tab hidden">
+        <h2 class="text-xl font-bold mb-4">全部订单</h2>
+        <div id="adminOrderList"></div>
+      </div>
+      <div id="admin-review" class="admin-tab hidden">
+        <h2 class="text-xl font-bold mb-4">待审核评论</h2>
+        <div id="adminReviewList"></div>
+      </div>
+      <div id="admin-sys" class="admin-tab hidden">
+        <h2 class="text-xl font-bold mb-4">系统账号与操作日志</h2>
+        <button onclick="addAdminAcc()" class="btn-green mb-4">新增管理员账号</button>
+        <div id="sysLogBox"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// 全局数据
+let userLogin = null;
+let isAdmin = false;
+let buyCount = 1;
+let currentProId = null;
+// 商品数据 完全匹配你本地img文件夹文件名
+let productData = [
+  {
+    id:1,
+    name:"校徽帆布包",
+    price:39,
+    cate:"stationery",
+    stock:120,
+    like:36,
+    collect:18,
+    status:1,
+    img:"img/bag.jpg"
+  },
+  {
+    id:2,
+    name:"毕业纪念班服",
+    price:69,
+    cate:"clothes",
+    stock:86,
+    like:52,
+    collect:29,
+    status:1,
+    img:"img/shirt.jpg"
+  },
+  {
+    id:3,
+    name:"校庆金属书签",
+    price:19,
+    cate:"stationery",
+    stock:200,
+    like:78,
+    collect:43,
+    status:1,
+    img:"img/book.jpg"
+  },
+  {
+    id:4,
+    name:"校园文创礼盒套装",
+    price:129,
+    cate:"gift",
+    stock:45,
+    like:22,
+    collect:11,
+    status:1,
+    img:"img/gift.jpg"
+  },
+  {
+    id:5,
+    name:"院系定制钥匙扣",
+    price:15,
+    cate:"gift",
+    stock:300,
+    like:95,
+    collect:56,
+    status:1,
+    img:"img/key.jpg"
+  },
+];
+// 购物车、订单、评论、AI作品、用户、日志
+let cartData = JSON.parse(localStorage.getItem("cart")) || [];
+let orderData = JSON.parse(localStorage.getItem("orderList")) || [];
+let reviewData = JSON.parse(localStorage.getItem("reviewList")) || [
+  {uid:"user",pid:1,content:"校徽做工很好，校园氛围感拉满",star:5,status:1}
+];
+let aiWorks = JSON.parse(localStorage.getItem("aiWorks")) || [];
+let userList = JSON.parse(localStorage.getItem("userList")) || [
+  {username:"user",pwd:"123456",phone:"13800138000",role:"user"},
+  {username:"admin",pwd:"admin123",phone:"13900139000",role:"admin"}
+];
+let opLog = JSON.parse(localStorage.getItem("opLog")) || [];
+
+// Canvas画布全局变量
+let canvas, ctx;
+// 帆布包底图（内置纯色帆布底色）
+const canvasWidth = 600;
+const canvasHeight = 320;
+
+// 页面切换
+function switchPage(pageId){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById("page-"+pageId).classList.add("active");
+  refreshPageData(pageId);
+  // 切换到AI页面初始化画布
+  if(pageId === "aiCreate"){
+    initCanvas();
+    aiGenerate();
+  }
+}
+// 初始化画布
+function initCanvas(){
+  canvas = document.getElementById("aiCanvas");
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+  ctx = canvas.getContext("2d");
+}
+// 刷新页面数据
+function refreshPageData(page){
+  if(page==="home") renderProduct(productData);
+  if(page==="cart") renderCart();
+  if(page==="personal") renderPersonal();
+  if(page==="adminHome"){
+    renderAdminStat();renderAdminProduct();renderAdminOrder();renderAdminReview();renderSysLog();
+  }
+}
+
+// 商品渲染（本地实物图片）
+function renderProduct(list){
+  const box = document.getElementById("productList");
+  box.innerHTML = "";
+  list.forEach(item=>{
+    const div = document.createElement("div");
+    div.className = "bg-white card-shadow p-4";
+    div.innerHTML = `
+      <img src="${item.img}" class="product-img rounded mb-3 cursor-pointer" onclick="openDetail(${item.id})" alt="${item.name}">
+      <h3 class="font-bold mb-2 cursor-pointer" onclick="openDetail(${item.id})">${item.name}</h3>
+      <p class="text-red-500 font-bold">¥${item.price}</p>
+      <p class="text-sm text-slate-400">库存${item.stock} | 点赞${item.like}</p>
+    `;
+    box.appendChild(div);
+  })
+}
+// 分类筛选
+function filterCate(cate){
+  if(cate==="all") renderProduct(productData);
+  else {
+    const arr = productData.filter(p=>p.cate===cate);
+    renderProduct(arr);
+  }
+}
+// 搜索商品
+function searchProduct(){
+  const key = document.getElementById("searchKey").value.trim();
+  if(!key) return renderProduct(productData);
+  const arr = productData.filter(p=>p.name.includes(key));
+  renderProduct(arr);
+}
+// 打开商品详情，加载对应实物图
+function openDetail(id){
+  currentProId = id;
+  switchPage("detail");
+  const pro = productData.find(p=>p.id===id);
+  document.getElementById("detailImg").src = pro.img;
+  document.getElementById("detailName").innerText = pro.name;
+  document.getElementById("detailPrice").innerText = pro.price;
+  document.getElementById("detailStock").innerText = pro.stock;
+  let cateName = pro.cate==="stationery"?"文具":pro.cate==="clothes"?"服饰":"纪念礼品";
+  document.getElementById("detailCate").innerText = cateName;
+  renderReview(pro.id);
+}
+// 渲染评论
+function renderReview(pid){
+  const box = document.getElementById("reviewBox");
+  box.innerHTML = "";
+  const arr = reviewData.filter(r=>r.pid===pid && r.status===1);
+  if(arr.length===0){box.innerHTML="<p class='text-slate-400'>暂无评论</p>";return;}
+  arr.forEach(r=>{
+    box.innerHTML += `<div class="border-b py-3"><p class="font-medium">用户${r.uid}</p><p class="text-yellow-500">星级：${r.star}星</p><p class="text-slate-600">${r.content}</p></div>`;
+  })
+}
+
+// 购物车渲染（带缩略图）
+function renderCart(){
+  const box = document.getElementById("cartList");
+  box.innerHTML = "";
+  let total = 0;
+  cartData.forEach(item=>{
+    const pro = productData.find(p=>p.id===item.pid);
+    const sub = pro.price * item.num;
+    total += sub;
+    box.innerHTML += `
+      <div class="flex items-center justify-between border-b py-4">
+        <div class="flex gap-4 items-center">
+          <img src="${pro.img}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;">
+          <div>
+            <h4 class="font-medium">${pro.name}</h4>
+            <p class="text-red-500">¥${pro.price} × ${item.num} = ¥${sub}</p>
+          </div>
+        </div>
+        <button onclick="delCart(${item.pid})" class="btn-red text-sm">删除</button>
+      </div>
+    `;
+  })
+  document.getElementById("cartTotal").innerText = total;
+  localStorage.setItem("cart",JSON.stringify(cartData));
+}
+// 添加购物车
+function addCart(){
+  if(!userLogin){alert("请先登录");openModal();return;}
+  const num = parseInt(document.getElementById("buyNum").value);
+  const exist = cartData.find(c=>c.pid===currentProId);
+  if(exist) exist.num += num;
+  else cartData.push({pid:currentProId,num});
+  renderCart();
+  alert("加入购物车成功");
+}
+// 删除购物车
+function delCart(pid){
+  cartData = cartData.filter(c=>c.pid!==pid);
+  renderCart();
+}
+// 直接下单
+function goBuy(){
+  addCart();
+  switchPage("cart");
+}
+// 结算下单
+function submitOrder(){
+  if(cartData.length===0){alert("购物车为空");return;}
+  let allStockOk = true;
+  cartData.forEach(item=>{
+    const p = productData.find(pr=>pr.id===item.pid);
+    if(p.stock < item.num) allStockOk = false;
+  })
+  if(!allStockOk){alert("部分商品库存不足，无法下单");return;}
+  // 扣库存
+  cartData.forEach(item=>{
+    const p = productData.find(pr=>pr.id===item.pid);
+    p.stock -= item.num;
+  })
+  // 生成订单
+  const orderNo = "ORD"+Date.now();
+  let total = 0;
+  cartData.forEach(item=>{
+    const p = productData.find(pr=>pr.id===item.pid);
+    total += p.price * item.num;
+  })
+  orderData.push({orderNo,uid:userLogin,goods:JSON.parse(JSON.stringify(cartData)),total,status:"pending"});
+  localStorage.setItem("orderList",JSON.stringify(orderData));
+  cartData = [];
+  localStorage.setItem("cart",JSON.stringify(cartData));
+  alert(`下单成功！订单号：${orderNo}`);
+  switchPage("personal");
+  switchPersonalTab("order");
+}
+
+// ====================== 修复后的AI生成核心函数 ======================
+function aiGenerate(){
+  if(!ctx) return;
+  // 获取输入参数
+  const school = document.getElementById("aiSchool").value.trim();
+  const keyword = document.getElementById("aiWord").value.trim();
+  const color = document.getElementById("aiColor").value;
+  if(!school){
+    alert("请填写学校名称");
+    return;
+  }
+  // 清空画布，绘制帆布包底色
+  ctx.clearRect(0,0,canvasWidth,canvasHeight);
+  // 帆布底色
+  ctx.fillStyle = "#f8f6ef";
+  ctx.fillRect(0,0,canvasWidth,canvasHeight);
+  // 绘制帆布提手
+  ctx.strokeStyle = "#e0ddd4";
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(120,0);
+  ctx.quadraticCurveTo(300,120,480,0);
+  ctx.stroke();
+  // 绘制圆形校徽区域
+  const circleX = canvasWidth / 2;
+  const circleY = canvasHeight / 2;
+  const r = 100;
+  // 外圈白边
+  ctx.beginPath();
+  ctx.arc(circleX,circleY,r,0,Math.PI*2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "#333333";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // 填充校徽主色
+  ctx.beginPath();
+  ctx.arc(circleX,circleY,r-12,0,Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  // 绘制学校名称环绕文字
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 24px SimHei";
+  ctx.textAlign = "center";
+  // 上方中文校名
+  ctx.fillText(school, circleX, circleY - r + 28);
+  // 下方英文
+  ctx.font = "18px Arial";
+  ctx.fillText("UNIVERSITY OF TECHNOLOGY", circleX, circleY + r - 20);
+  // 中间关键词文字
+  ctx.font = "bold 32px SimHei";
+  ctx.fillText(keyword, circleX, circleY + 12);
+  alert("文创图案生成完成！");
+}
+// 保存AI作品
+function saveAiWork(){
+  if(!userLogin){alert("请先登录");openModal();return;}
+  const school = document.getElementById("aiSchool").value;
+  const color = document.getElementById("aiColor").value;
+  // 导出画布图片base64
+  const imgUrl = canvas.toDataURL("image/png");
+  aiWorks.push({
+    school: school,
+    keyword: document.getElementById("aiWord").value,
+    color: color,
+    img: imgUrl,
+    time: new Date().toLocaleString()
+  });
+  localStorage.setItem("aiWorks",JSON.stringify(aiWorks));
+  alert("AI作品保存成功，前往个人中心查看");
+}
+// ==================================================================
+
+// 登录弹窗
+function openModal(){document.getElementById("loginModal").classList.add("show");}
+function closeModal(){document.getElementById("loginModal").classList.remove("show");}
+function switchReg(){
+  document.getElementById("loginForm").classList.add("hidden");
+  document.getElementById("regForm").classList.remove("hidden");
+  document.getElementById("modalTitle").innerText = "用户注册";
+}
+function switchLogin(){
+  document.getElementById("loginForm").classList.remove("hidden");
+  document.getElementById("regForm").classList.add("hidden");
+  document.getElementById("modalTitle").innerText = "用户登录";
+}
+// 登录
+function doLogin(){
+  const u = document.getElementById("loginUser").value.trim();
+  const p = document.getElementById("loginPwd").value.trim();
+  const user = userList.find(x=>x.username===u && x.pwd===p);
+  if(!user){alert("账号或密码错误");return;}
+  userLogin = u;
+  isAdmin = user.role === "admin";
+  closeModal();
+  refreshUserBar();
+  alert("登录成功，欢迎，"+u);
+}
+// 注册
+function doRegister(){
+  const u = document.getElementById("regUser").value.trim();
+  const p = document.getElementById("regPwd").value.trim();
+  const phone = document.getElementById("regPhone").value.trim();
+  if(!u||!p||!phone){alert("请填写完整信息");return;}
+  if(userList.find(x=>x.username===u)){alert("用户名已存在");return;}
+  userList.push({username:u,pwd:p,phone,role:"user"});
+  localStorage.setItem("userList",JSON.stringify(userList));
+  alert("注册成功，请登录");
+  switchLogin();
+}
+// 刷新顶部用户栏（匹配截图欢迎文字）
+function refreshUserBar(){
+  const userText = document.getElementById("userText");
+  const loginBtn = document.querySelector("#userArea .btn-blue");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const adminBtn = document.getElementById("adminEntry");
+  if(userLogin){
+    userText.innerText = `欢迎，${userLogin}`;
+    loginBtn.classList.add("hidden");
+    logoutBtn.classList.remove("hidden");
+    if(isAdmin) adminBtn.classList.remove("hidden");
+    else adminBtn.classList.add("hidden");
+  }else{
+    userText.innerText = "";
+    loginBtn.classList.remove("hidden");
+    logoutBtn.classList.add("hidden");
+    adminBtn.classList.add("hidden");
+  }
+}
+// 退出登录
+function logout(){
+  userLogin = null;
+  isAdmin = false;
+  refreshUserBar();
+  switchPage("home");
+}
+
+// 个人中心切换标签
+function switchPersonalTab(tab){
+  document.querySelectorAll(".personal-tab").forEach(t=>t.classList.add("hidden"));
+  document.getElementById("tab-"+tab).classList.remove("hidden");
+  if(tab==="info"){
+    const u = userList.find(x=>x.username===userLogin);
+    document.getElementById("editName").value = u.username;
+    document.getElementById("editPhone").value = u.phone;
+  }
+  if(tab==="order") renderMyOrder();
+  if(tab==="collect") renderMyCollect();
+  if(tab==="aiwork") renderMyAiWork();
+}
+// 我的订单
+function renderMyOrder(){
+  const box = document.getElementById("tab-order");
+  const myOrder = orderData.filter(o=>o.uid===userLogin);
+  if(myOrder.length===0){box.innerHTML="<p>暂无订单</p>";return;}
+  let html = "";
+  myOrder.forEach(ord=>{
+    let tag = ord.status==="pending"?"tag-pending":"tag-shipped";
+    let tagText = ord.status==="pending"?"待付款":"待发货";
+    html += `
+      <div class="border rounded p-4 mb-4">
+        <div class="flex justify-between mb-2">
+          <span>订单号：${ord.orderNo}</span>
+          <span class="tag ${tag}">${tagText}</span>
+        </div>
+        <p class="text-red-500">合计：¥${ord.total}</p>
+      </div>
+    `;
+  })
+  box.innerHTML = html;
+}
+// 我的AI作品
+function renderMyAiWork(){
+  const box = document.getElementById("tab-aiwork");
+  const myWork = aiWorks.filter(w=>true);
+  if(myWork.length===0){box.innerHTML="<p>暂无AI文创作品，前往AI生成页面创作</p>";return;}
+  let html = "";
+  myWork.forEach(w=>{
+    html += `
+      <div class="border p-4 mb-4 flex gap-4">
+        <img src="${w.img}" style="width:180px;height:100px;object-fit:cover;">
+        <div>
+          <p>学校：${w.school}</p>
+          <p>关键词：${w.keyword}</p>
+          <p>生成时间：${w.time}</p>
+        </div>
+      </div>
+    `;
+  })
+  box.innerHTML = html;
+}
+// 保存个人信息
+function saveUserInfo(){
+  const name = document.getElementById("editName").value.trim();
+  const phone = document.getElementById("editPhone").value.trim();
+  const u = userList.find(x=>x.username===userLogin);
+  u.username = name;
+  u.phone = phone;
+  localStorage.setItem("userList",JSON.stringify(userList));
+  refreshUserBar();
+  alert("信息修改成功");
+}
+
+// 管理员面板切换
+function switchAdminTab(tab){
+  document.querySelectorAll(".admin-tab").forEach(t=>t.classList.add("hidden"));
+  document.getElementById("admin-"+tab).classList.remove("hidden");
+}
+// 管理员数据图表
+function renderAdminStat(){
+  const chartDom = document.getElementById("chartBox");
+  const myChart = echarts.init(chartDom);
+  const opt = {
+    xAxis:{type:"category",data:productData.map(p=>p.name)},
+    yAxis:{type:"value"},
+    series:[{type:"bar",data:productData.map(p=>p.like)}]
+  };
+  myChart.setOption(opt);
+}
+// 管理员商品列表（带图片列）
+function renderAdminProduct(){
+  const box = document.getElementById("adminProList");
+  let html = "<table class='w-full border'><tr class='bg-slate-100'><th class='border p-2'>ID</th><th class='border p-2'>商品图</th><th class='border p-2'>名称</th><th class='border p-2'>价格</th><th class='border p-2'>库存</th><th class='border p-2'>操作</th></tr>";
+  productData.forEach(p=>{
+    html += `
+      <tr>
+        <td class='border p-2'>${p.id}</td>
+        <td class='border p-2'><img src="${p.img}" style="width:60px;height:40px;object-fit:cover;"></td>
+        <td class='border p-2'>${p.name}</td>
+        <td class='border p-2'>${p.price}</td>
+        <td class='border p-2'>${p.stock}</td>
+        <td class='border p-2'><button class='btn-blue text-sm'>编辑</button></td>
+      </tr>
+    `;
+  })
+  html += "</table>";
+  box.innerHTML = html;
+}
+// 管理员订单
+function renderAdminOrder(){
+  const box = document.getElementById("adminOrderList");
+  if(orderData.length===0){box.innerHTML="<p>暂无订单</p>";return;}
+  let html = "";
+  orderData.forEach(ord=>{
+    html += `
+      <div class="border p-4 mb-3 flex justify-between items-center">
+        <div>订单号：${ord.orderNo} | 用户：${ord.uid} | 总价：${ord.total}</div>
+        <button onclick="shipOrder('${ord.orderNo}')" class="btn-green">标记已发货</button>
+      </div>
+    `;
+  })
+  box.innerHTML = html;
+}
+// 订单发货
+function shipOrder(no){
+  const ord = orderData.find(o=>o.orderNo===no);
+  ord.status = "shipped";
+  localStorage.setItem("orderList",JSON.stringify(orderData));
+  renderAdminOrder();
+  alert("订单已标记发货");
+}
+// 评论审核
+function renderAdminReview(){
+  const box = document.getElementById("adminReviewList");
+  const waitReview = reviewData.filter(r=>r.status===0);
+  if(waitReview.length===0){box.innerHTML="<p>暂无待审核评论</p>";return;}
+  let html = "";
+  waitReview.forEach(r=>{
+    html += `
+      <div class="border p-4 mb-3 flex justify-between items-center">
+        <div>用户${r.uid}：${r.content}（${r.star}星）</div>
+        <button onclick="passReview(${reviewData.indexOf(r)})" class="btn-green">通过审核</button>
+      </div>
+    `;
+  })
+  box.innerHTML = html;
+}
+// 通过评论
+function passReview(idx){
+  reviewData[idx].status = 1;
+  localStorage.setItem("reviewList",JSON.stringify(reviewData));
+  renderAdminReview();
+}
+// 系统日志
+function renderSysLog(){
+  document.getElementById("sysLogBox").innerHTML = "<p class='text-slate-400'>操作日志模拟展示区域</p>";
+}
+
+// 商品数量加减
+function numMinus(){
+  let n = parseInt(document.getElementById("buyNum").value);
+  if(n>1) document.getElementById("buyNum").value = n-1;
+}
+function numAdd(){
+  let n = parseInt(document.getElementById("buyNum").value);
+  document.getElementById("buyNum").value = n+1;
+}
+
+// 页面初始化
+window.onload = function(){
+  refreshUserBar();
+  renderProduct(productData);
+}
+</script>
+</body>
+</html>
